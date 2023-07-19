@@ -22,6 +22,7 @@ import torch.nn.functional as F
 import torch.hub
 from functools import partial
 import math
+import head
 
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 from timm.models.registry import register_model
@@ -109,7 +110,7 @@ class PatchEmbed(nn.Module):
     2D Image to Patch Embedding
     """
 
-    def __init__(self, img_size=14, patch_size=16, in_c=256, embed_dim=768, norm_layer=None):
+    def __init__(self, img_size=14, patch_size=16, in_c=256, embed_dim=512, norm_layer=None):
         super().__init__()
         img_size = (img_size, img_size)
         patch_size = (patch_size, patch_size)
@@ -118,7 +119,7 @@ class PatchEmbed(nn.Module):
         self.grid_size = (img_size[0] // patch_size[0], img_size[1] // patch_size[1])
         self.num_patches = self.grid_size[0] * self.grid_size[1]
 
-        self.proj = nn.Conv2d(256, 768, kernel_size=1)
+        self.proj = nn.Conv2d(256, 512, kernel_size=1)
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
 
     def forward(self, x):
@@ -453,7 +454,7 @@ class eca_block(nn.Module):
 #         #                                      drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1)
 #
 #         # self.se_block = SE_block(input_dim=512)
-#         self.head = ClassificationHead(input_dim=768, target_dim=self.num_classes)
+#         self.head = ClassificationHead(input_dim=512, target_dim=self.num_classes)
 #
 #     def forward(self, x):
 #         B_ = x.shape[0]
@@ -512,7 +513,7 @@ class SE_block(nn.Module):
 
 class VisionTransformer(nn.Module):
     def __init__(self, img_size=14, patch_size=14, in_c=147, num_classes=7,
-                 embed_dim=768, depth=6, num_heads=8, mlp_ratio=4.0, qkv_bias=True,
+                 embed_dim=512, depth=6, num_heads=8, mlp_ratio=4.0, qkv_bias=True,
                  qk_scale=None, representation_size=None, distilled=False, drop_ratio=0.,
                  attn_drop_ratio=0., drop_path_ratio=0., embed_layer=PatchEmbed, norm_layer=None,
                  act_layer=None):
@@ -550,9 +551,17 @@ class VisionTransformer(nn.Module):
         self.se_block = SE_block(input_dim=embed_dim)
 
 
-        self.patch_embed = embed_layer(img_size=img_size, patch_size=patch_size, in_c=256, embed_dim=768)
+        self.patch_embed = embed_layer(img_size=img_size, patch_size=patch_size, in_c=256, embed_dim=512)
         num_patches = self.patch_embed.num_patches
-        self.head = ClassificationHead(input_dim=embed_dim, target_dim=self.num_classes)
+        # self.head = ClassificationHead(input_dim=embed_dim, target_dim=self.num_classes)
+        self.head = head.build_head(head_type='adaface',
+              embedding_size=512,
+              class_num=7,
+              m=0.4,
+              t_alpha=1.0,
+              h=0.333,
+              s=64.,
+              )
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.dist_token = nn.Parameter(torch.zeros(1, 1, embed_dim)) if distilled else None
         # self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + self.num_tokens, embed_dim))
@@ -566,9 +575,9 @@ class VisionTransformer(nn.Module):
         # # ir_checkpoint = ir_checkpoint["model"]
         # self.ir_back = load_pretrained_weights(self.ir_back, ir_checkpoint)
 
-        self.CON1 = nn.Conv2d(256, 768, kernel_size=1, stride=1, bias=False)
-        self.IRLinear1 = nn.Linear(1024, 768)
-        self.IRLinear2 = nn.Linear(768, 512)
+        self.CON1 = nn.Conv2d(256, 512, kernel_size=1, stride=1, bias=False)
+        self.IRLinear1 = nn.Linear(1024, 512)
+        self.IRLinear2 = nn.Linear(512, 512)
         self.eca_block = eca_block()
         dpr = [x.item() for x in torch.linspace(0, drop_path_ratio, depth)]  # stochastic depth decay rule
         self.blocks = nn.Sequential(*[
@@ -608,13 +617,13 @@ class VisionTransformer(nn.Module):
 
     def forward_features(self, x):
         # [B, C, H, W] -> [B, num_patches, embed_dim]
-        # x = self.patch_embed(x)  # [B, 196, 768]
-        # [1, 1, 768] -> [B, 1, 768]
+        # x = self.patch_embed(x)  # [B, 196, 512]
+        # [1, 1, 512] -> [B, 1, 512]
         # print(x.shape)
 
         cls_token = self.cls_token.expand(x.shape[0], -1, -1)
         if self.dist_token is None:
-            x = torch.cat((cls_token, x), dim=1)  # [B, 197, 768]
+            x = torch.cat((cls_token, x), dim=1)  # [B, 197, 512]
         else:
             x = torch.cat((cls_token, self.dist_token.expand(x.shape[0], -1, -1), x), dim=1)
         # print(x.shape)
@@ -626,7 +635,7 @@ class VisionTransformer(nn.Module):
         else:
             return x[:, 0], x[:, 1]
 
-    def forward(self, x):
+    def forward(self, x, labels):
 
         # B = x.shape[0]
         # print(x)
@@ -636,7 +645,7 @@ class VisionTransformer(nn.Module):
         # x = self.ir_back(x)
         # print(x.shape)
         # x = self.CON1(x)
-        # x = x.view(-1, 196, 768)
+        # x = x.view(-1, 196, 512)
         #
         # # print(x.shape)
         # # x = self.IRLinear1(x)
@@ -669,9 +678,15 @@ class VisionTransformer(nn.Module):
         # print(x.shape)
         x = self.se_block(x)
 
-        x1 = self.head(x)
-
-        return x1, x
+        # x1 = self.head(x)
+        norms = torch.norm(x, 2, 1, True)
+        embeddings = torch.div(x, norms)
+        cos_thetas = self.head(embeddings, norms, labels)
+        if isinstance(cos_thetas, tuple):
+            cos_thetas, bad_grad = cos_thetas
+            labels[bad_grad.squeeze(-1)] = -100  # ignore_index
+        return cos_thetas, norms, embeddings, labels
+        # return x1, x
 
 
 def _init_vit_weights(m):
@@ -701,7 +716,7 @@ def vit_base_patch16_224(num_classes: int = 7):
     """
     model = VisionTransformer(img_size=224,
                               patch_size=16,
-                              embed_dim=768,
+                              embed_dim=512,
                               depth=12,
                               num_heads=12,
                               representation_size=None,
@@ -719,10 +734,10 @@ def vit_base_patch16_224_in21k(num_classes: int = 21843, has_logits: bool = True
     """
     model = VisionTransformer(img_size=224,
                               patch_size=16,
-                              embed_dim=768,
+                              embed_dim=512,
                               depth=12,
                               num_heads=12,
-                              representation_size=768 if has_logits else None,
+                              representation_size=512 if has_logits else None,
                               num_classes=num_classes)
     return model
 
@@ -736,7 +751,7 @@ def vit_base_patch32_224(num_classes: int = 1000):
     """
     model = VisionTransformer(img_size=224,
                               patch_size=32,
-                              embed_dim=768,
+                              embed_dim=512,
                               depth=12,
                               num_heads=12,
                               representation_size=None,
@@ -753,10 +768,10 @@ def vit_base_patch32_224_in21k(num_classes: int = 21843, has_logits: bool = True
     """
     model = VisionTransformer(img_size=224,
                               patch_size=32,
-                              embed_dim=768,
+                              embed_dim=512,
                               depth=12,
                               num_heads=12,
-                              representation_size=768 if has_logits else None,
+                              representation_size=512 if has_logits else None,
                               num_classes=num_classes)
     return model
 
