@@ -235,7 +235,7 @@ class feedforward(nn.Module):
 
 
 class pyramid_trans_expr2(nn.Module):
-    def __init__(self, img_size=224, num_classes=7, window_size=[28,14,7], num_heads=[2, 4, 8], dims=[64, 128, 256], embed_dim=768):
+    def __init__(self, img_size=224, num_classes=7, window_size=[28,14,7], num_heads=[2, 4, 8], dims=[64, 128, 256], embed_dim=512):
         super().__init__()
 
         self.img_size = img_size
@@ -278,12 +278,12 @@ class pyramid_trans_expr2(nn.Module):
 
         self.last_face_conv = nn.Conv2d(in_channels=512, out_channels=256, kernel_size=3, padding=1)
 
-        self.embed_q = nn.Sequential(nn.Conv2d(dims[0], 768, kernel_size=3, stride=2, padding=1),
-                                     nn.Conv2d(768, 768, kernel_size=3, stride=2, padding=1))
-        self.embed_k = nn.Sequential(nn.Conv2d(dims[1], 768, kernel_size=3, stride=2, padding=1))
-        self.embed_v = PatchEmbed(img_size=14, patch_size=14, in_c=256, embed_dim=768)
+        self.embed_q = nn.Sequential(nn.Conv2d(dims[0], 512, kernel_size=3, stride=2, padding=1),
+                                     nn.Conv2d(512, 512, kernel_size=3, stride=2, padding=1))
+        self.embed_k = nn.Sequential(nn.Conv2d(dims[1], 512, kernel_size=3, stride=2, padding=1))
+        self.embed_v = PatchEmbed(img_size=14, patch_size=14, in_c=256, embed_dim=512)
 
-    def forward(self, x):
+    def forward(self, x, labels):
         x_face = F.interpolate(x, size=112)
         x_face1 , x_face2, x_face3 = self.face_landback(x_face)
         x_face3 = self.last_face_conv(x_face3)
@@ -310,8 +310,9 @@ class pyramid_trans_expr2(nn.Module):
 
         o = torch.cat([o1, o2, o3], dim=1)
 
-        out, y_feat = self.VIT(o)
-        return out, y_feat
+        # out, y_feat = self.VIT(o)
+        cos_thetas, norms, embeddings, labels = self.VIT(o, labels)
+        return cos_thetas, norms, embeddings, labels
 
 def compute_param_flop():
     model = pyramid_trans_expr2()
