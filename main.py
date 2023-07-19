@@ -31,8 +31,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--data', type=str, default=r'/home/Dataset/RAF')
 parser.add_argument('--data_type', default='RAF-DB', choices=['RAF-DB', 'AffectNet-7', 'CAER-S'],
                         type=str, help='dataset option')
-parser.add_argument('--checkpoint_path', type=str, default='./checkpoint/' + time_str + 'model.pth')
-parser.add_argument('--best_checkpoint_path', type=str, default='./checkpoint/' + time_str + 'model_best.pth')
+parser.add_argument('--checkpoint_path', type=str, default='/content/drive/MyDrive/POSTER_V2/checkpoint' + time_str + 'model.pth')
+parser.add_argument('--best_checkpoint_path', type=str, default='/content/drive/MyDrive/POSTER_V2/checkpoint' + time_str + 'model_best.pth')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N', help='number of data loading workers')
 parser.add_argument('--epochs', default=200, type=int, metavar='N', help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N', help='manual epoch number (useful on restarts)')
@@ -49,39 +49,6 @@ parser.add_argument('--beta', type=float, default=0.6)
 parser.add_argument('--gpu', type=str, default='0')
 args = parser.parse_args()
 
-head_adaface = head.build_head(head_type='adaface',
-              embedding_size=768,
-              class_num=7,
-              m=0.4,
-              t_alpha=1.0,
-              h=0.333,
-              s=64.,
-              )
-"""
-head_arcface = head.build_head(head_type='arcface',
-              embedding_size=768,
-              class_num=7,
-              m=0.4,
-              t_alpha=1.0,
-              h=0.333,
-              s=64.,
-              )
-head_cosface = head.build_head(head_type='cosface',
-              embedding_size=768,
-              class_num=7,
-              m=0.4,
-              t_alpha=1.0,
-              h=0.333,
-              s=64.,
-              )
-"""
-def forward(images, labels, model):
-  norms, embeddings = model(images)
-  cos_thetas = head_adaface(embeddings, norms, labels)
-  if isinstance(cos_thetas, tuple):
-      cos_thetas, bad_grad = cos_thetas
-      labels[bad_grad.squeeze(-1)] = -100 # ignore_index
-  return cos_thetas, norms, embeddings, labels 
 def main():
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     best_acc = 0
@@ -242,14 +209,14 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         target = target.cuda()
 
         # compute output
-        output, feature = model(images)
+        # output, feature = model(images)
         #print(output.size())
         #print(feature.size())
-        cos_thetas, norms, embeddings, labels = forward(images, target, model)
+        cos_thetas, norms, embeddings, labels = model(images, target)
         loss = criterion(cos_thetas, target)
 
         # measure accuracy and record loss
-        acc1, _ = accuracy(output, target, topk=(1, 5))
+        acc1, _ = accuracy(cos_thetas, target, topk=(1, 5))
         losses.update(loss.item(), images.size(0))
         top1.update(acc1[0], images.size(0))
 
@@ -262,12 +229,12 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         target = target.cuda()
 
         # compute output
-        output, features = model(images)
-        cos_thetas, norms, embeddings, labels = forward(images, target, model)
+        # output, features = model(images)
+        cos_thetas, norms, embeddings, labels = model(images, target)
         loss = criterion(cos_thetas, target)
 
         # measure accuracy and record loss
-        acc1, _ = accuracy(output, target, topk=(1, 5))
+        acc1, _ = accuracy(cos_thetas, target, topk=(1, 5))
         losses.update(loss.item(), images.size(0))
         top1.update(acc1[0], images.size(0))
 
@@ -303,12 +270,12 @@ def validate(val_loader, model, criterion, args):
         for i, (images, target) in enumerate(val_loader):
             images = images.cuda()
             target = target.cuda()
-            output, feature = model(images)
-            cos_thetas, norms, embeddings, labels = forward(images, target, model)
+            # output, feature = model(images)
+            cos_thetas, norms, embeddings, labels = model(images, target)
             loss = criterion(cos_thetas, target)
 
             # measure accuracy and record loss
-            acc, _ = accuracy(output, target, topk=(1, 5))
+            acc, _ = accuracy(cos_thetas, target, topk=(1, 5))
             losses.update(loss.item(), images.size(0))
             top1.update(acc[0], images.size(0))
 
@@ -317,7 +284,7 @@ def validate(val_loader, model, criterion, args):
             with torch.no_grad():
                 maxk = max(topk)
                 # batch_size = target.size(0)
-                _, pred = output.topk(maxk, 1, True, True)
+                _, pred = cos_thetas.topk(maxk, 1, True, True)
                 pred = pred.t()
 
             output = pred
