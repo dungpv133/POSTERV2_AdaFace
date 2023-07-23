@@ -47,6 +47,7 @@ parser.add_argument('--resume', default=None, type=str, metavar='PATH', help='pa
 parser.add_argument('-e', '--evaluate', default=None, type=str, help='evaluate model on test set')
 parser.add_argument('--beta', type=float, default=0.6)
 parser.add_argument('--gpu', type=str, default='0')
+parser.add_argument('--head', type=str, default='adaface')
 args = parser.parse_args()
 
 def main():
@@ -55,7 +56,7 @@ def main():
     print('Training time: ' + now.strftime("%m-%d %H:%M"))
 
     # create model
-    model = pyramid_trans_expr2(img_size=224, num_classes=7)
+    model = pyramid_trans_expr2(img_size=224, num_classes=7, head_loss = args.head)
 
     model = torch.nn.DataParallel(model).cuda()
 
@@ -209,14 +210,14 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         target = target.cuda()
 
         # compute output
-        # output, feature = model(images)
-        #print(output.size())
-        #print(feature.size())
-        cos_thetas, norms, embeddings, labels = model(images, target)
-        loss = criterion(cos_thetas, target)
-
-        # measure accuracy and record loss
-        acc1, _ = accuracy(cos_thetas, target, topk=(1, 5))
+        if(args.head == "crossentropy"):
+          output = model(images)
+          loss = criterion(output, target)
+          acc1, _ = accuracy(output, target, topk=(1, 5))
+        else:
+          cos_thetas, norms, embeddings, labels = model(images, target)
+          loss = criterion(cos_thetas, target)
+          acc1, _ = accuracy(cos_thetas, target, topk=(1, 5))
         losses.update(loss.item(), images.size(0))
         top1.update(acc1[0], images.size(0))
 
@@ -229,12 +230,14 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         target = target.cuda()
 
         # compute output
-        # output, features = model(images)
-        cos_thetas, norms, embeddings, labels = model(images, target)
-        loss = criterion(cos_thetas, target)
-
-        # measure accuracy and record loss
-        acc1, _ = accuracy(cos_thetas, target, topk=(1, 5))
+        if(args.head == "crossentropy"):
+          output = model(images)
+          loss = criterion(output, target)
+          acc1, _ = accuracy(output, target, topk=(1, 5))
+        else:
+          cos_thetas, norms, embeddings, labels = model(images, target)
+          loss = criterion(cos_thetas, target)
+          acc1, _ = accuracy(cos_thetas, target, topk=(1, 5))
         losses.update(loss.item(), images.size(0))
         top1.update(acc1[0], images.size(0))
 
@@ -270,14 +273,16 @@ def validate(val_loader, model, criterion, args):
         for i, (images, target) in enumerate(val_loader):
             images = images.cuda()
             target = target.cuda()
-            # output, feature = model(images)
-            cos_thetas, norms, embeddings, labels = model(images, target)
-            loss = criterion(cos_thetas, target)
-
-            # measure accuracy and record loss
-            acc, _ = accuracy(cos_thetas, target, topk=(1, 5))
+            if(args.head == "crossentropy"):
+              output = model(images)
+              loss = criterion(output, target)
+              acc1, _ = accuracy(output, target, topk=(1, 5))
+            else:
+              cos_thetas, norms, embeddings, labels = model(images, target)
+              loss = criterion(cos_thetas, target)
+              acc1, _ = accuracy(cos_thetas, target, topk=(1, 5))
             losses.update(loss.item(), images.size(0))
-            top1.update(acc[0], images.size(0))
+            top1.update(acc1[0], images.size(0))
 
             topk = (1,)
             # """Computes the accuracy over the k top predictions for the specified values of k"""
