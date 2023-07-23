@@ -235,7 +235,7 @@ class feedforward(nn.Module):
 
 
 class pyramid_trans_expr2(nn.Module):
-    def __init__(self, img_size=224, num_classes=7, window_size=[28,14,7], num_heads=[2, 4, 8], dims=[64, 128, 256], embed_dim=512):
+    def __init__(self, img_size=224, num_classes=7, window_size=[28,14,7], num_heads=[2, 4, 8], dims=[64, 128, 256], embed_dim=512, head_loss="crossentropy"):
         super().__init__()
 
         self.img_size = img_size
@@ -254,7 +254,7 @@ class pyramid_trans_expr2(nn.Module):
         for param in self.face_landback.parameters():
             param.requires_grad = False
 
-        self.VIT = VisionTransformer(depth=2, embed_dim=embed_dim)
+        self.VIT = VisionTransformer(depth=2, embed_dim=embed_dim, head_loss=head_loss)
 
         self.ir_back = Backbone(50, 0.0, 'ir')
         ir_checkpoint = torch.load(r'models/pretrain/ir50.pth', map_location=lambda storage, loc: storage)
@@ -283,7 +283,7 @@ class pyramid_trans_expr2(nn.Module):
         self.embed_k = nn.Sequential(nn.Conv2d(dims[1], 512, kernel_size=3, stride=2, padding=1))
         self.embed_v = PatchEmbed(img_size=14, patch_size=14, in_c=256, embed_dim=512)
 
-    def forward(self, x, labels):
+    def forward(self, x, labels=None):
         x_face = F.interpolate(x, size=112)
         x_face1 , x_face2, x_face3 = self.face_landback(x_face)
         x_face3 = self.last_face_conv(x_face3)
@@ -311,8 +311,11 @@ class pyramid_trans_expr2(nn.Module):
         o = torch.cat([o1, o2, o3], dim=1)
 
         # out, y_feat = self.VIT(o)
-        cos_thetas, norms, embeddings, labels = self.VIT(o, labels)
-        return cos_thetas, norms, embeddings, labels
+        if labels is not None:
+          cos_thetas, norms, embeddings, labels = self.VIT(o, labels)
+          return cos_thetas, norms, embeddings, labels
+        out = self.VIT(o)
+        return out
 
 def compute_param_flop():
     model = pyramid_trans_expr2()
