@@ -516,7 +516,7 @@ class VisionTransformer(nn.Module):
                  embed_dim=512, depth=6, num_heads=8, mlp_ratio=4.0, qkv_bias=True,
                  qk_scale=None, representation_size=None, distilled=False, drop_ratio=0.,
                  attn_drop_ratio=0., drop_path_ratio=0., embed_layer=PatchEmbed, norm_layer=None,
-                 act_layer=None):
+                 act_layer=None, head_loss="crossentropy"):
         """
         Args:
             img_size (int, tuple): input image size
@@ -553,15 +553,35 @@ class VisionTransformer(nn.Module):
 
         self.patch_embed = embed_layer(img_size=img_size, patch_size=patch_size, in_c=256, embed_dim=512)
         num_patches = self.patch_embed.num_patches
-        # self.head = ClassificationHead(input_dim=embed_dim, target_dim=self.num_classes)
-        self.head = head.build_head(head_type='adaface',
-              embedding_size=512,
-              class_num=7,
-              m=0.4,
-              t_alpha=1.0,
-              h=0.333,
-              s=64.,
-              )
+        if (head_loss == "crossentropy"):
+          self.head = ClassificationHead(input_dim=embed_dim, target_dim=self.num_classes)
+        elif(head_loss == "adaface"):
+          self.head = head.build_head(head_type='adaface',
+                embedding_size=512,
+                class_num=7,
+                m=0.4,
+                t_alpha=1.0,
+                h=0.333,
+                s=64.,
+                )
+        elif(head_loss == "arcface"):
+          self.head = head.build_head(head_type='arcface',
+                embedding_size=512,
+                class_num=7,
+                m=0.4,
+                t_alpha=1.0,
+                h=0.333,
+                s=64.,
+                )
+        elif(head_loss == "adaface"):
+          self.head = head.build_head(head_type='cosface',
+                embedding_size=512,
+                class_num=7,
+                m=0.4,
+                t_alpha=1.0,
+                h=0.333,
+                s=64.,
+                )
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.dist_token = nn.Parameter(torch.zeros(1, 1, embed_dim)) if distilled else None
         # self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + self.num_tokens, embed_dim))
@@ -635,7 +655,7 @@ class VisionTransformer(nn.Module):
         else:
             return x[:, 0], x[:, 1]
 
-    def forward(self, x, labels):
+    def forward(self, x, labels=None):
 
         # B = x.shape[0]
         # print(x)
@@ -679,15 +699,16 @@ class VisionTransformer(nn.Module):
         x = self.se_block(x)
 
         # x1 = self.head(x)
-        norms = torch.norm(x, 2, 1, True)
-        embeddings = torch.div(x, norms)
-        cos_thetas = self.head(embeddings, norms, labels)
-        if isinstance(cos_thetas, tuple):
-            cos_thetas, bad_grad = cos_thetas
-            labels[bad_grad.squeeze(-1)] = -100  # ignore_index
-        return cos_thetas, norms, embeddings, labels
-        # return x1, x
-
+        if (labels is not None):
+          norms = torch.norm(x, 2, 1, True)
+          embeddings = torch.div(x, norms)
+          cos_thetas = self.head(embeddings, norms, labels)
+          if isinstance(cos_thetas, tuple):
+              cos_thetas, bad_grad = cos_thetas
+              labels[bad_grad.squeeze(-1)] = -100  # ignore_index
+          return cos_thetas, norms, embeddings, labels
+        x1 = self.head(x)
+        return x1
 
 def _init_vit_weights(m):
     """
