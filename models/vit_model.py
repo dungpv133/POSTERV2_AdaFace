@@ -573,7 +573,7 @@ class VisionTransformer(nn.Module):
                 h=0.333,
                 s=64.,
                 )
-        elif(head_loss == "adaface"):
+        elif(head_loss == "cosface"):
           self.head = head.build_head(head_type='cosface',
                 embedding_size=512,
                 class_num=7,
