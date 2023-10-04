@@ -58,7 +58,11 @@ def main():
     # create model
     model = pyramid_trans_expr2(img_size=224, num_classes=7, head_loss = args.head)
 
-    model = torch.nn.DataParallel(model).cuda()
+    # model = torch.nn.DataParallel(model).cuda()
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model = nn.DataParallel(model, device_ids=[0, 1])
+    model.to(device)
+    model = model.cuda()
 
     criterion = torch.nn.CrossEntropyLoss()
 
