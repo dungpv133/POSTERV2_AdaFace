@@ -190,12 +190,12 @@ def main():
         with open(txt_name, 'a') as f:
             f.write('Current best accuracy: ' + str(best_acc.item()) + '\n')
 
-        save_checkpoint({'epoch': epoch + 1,
-                         'state_dict': model.state_dict(),
-                         'best_acc': best_acc,
-                         'optimizer': optimizer.state_dict(),
-                         'recorder1': recorder1,
-                         'recorder': recorder}, is_best, args)
+        # save_checkpoint({'epoch': epoch + 1,
+        #                  'state_dict': model.state_dict(),
+        #                  'best_acc': best_acc,
+        #                  'optimizer': optimizer.state_dict(),
+        #                  'recorder1': recorder1,
+        #                  'recorder': recorder}, is_best, args)
 
 
 def train(train_loader, model, criterion, optimizer, epoch, args):
