@@ -568,7 +568,7 @@ class VisionTransformer(nn.Module):
           self.head = head.build_head(head_type='arcface',
                 embedding_size=512,
                 class_num=7,
-                m=0.4,
+                m=0.5,
                 t_alpha=1.0,
                 h=0.333,
                 s=64.,
