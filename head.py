@@ -45,7 +45,7 @@ def l2_norm(input,axis=1):
 class AdaFace(Module):
     def __init__(self,
                  embedding_size=512,
-                 classnum=70722,
+                 classnum=7,
                  m=0.4,
                  h=0.333,
                  s=64.,
@@ -130,7 +130,7 @@ class AdaFace(Module):
 
 class CosFace(nn.Module):
 
-    def __init__(self, embedding_size=512, classnum=51332,  s=64., m=0.4):
+    def __init__(self, embedding_size=512, classnum=7,  s=64., m=0.4):
         super(CosFace, self).__init__()
         self.classnum = classnum
         self.kernel = Parameter(torch.Tensor(embedding_size,classnum))
@@ -160,7 +160,7 @@ class CosFace(nn.Module):
 
 class ArcFace(Module):
 
-    def __init__(self, embedding_size=512, classnum=51332,  s=64., m=0.5):
+    def __init__(self, embedding_size=512, classnum=7,  s=64., m=0.5):
         super(ArcFace, self).__init__()
         self.classnum = classnum
         self.kernel = Parameter(torch.Tensor(embedding_size,classnum))
