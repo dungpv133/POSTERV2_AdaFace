@@ -34,6 +34,32 @@ def load_pretrained_weights(model, checkpoint):
     print('load_weight', len(matched_layers))
     return model
 
+
+def load_supcon_weights(model, keyword, path):
+    import collections
+    ckpt = torch.load(path, map_location=lambda storage, loc: storage)
+    state_dict = ckpt['model']
+    model_dict = model.state_dict()
+    new_state_dict = collections.OrderedDict()
+    matched_layers, discarded_layers = [], []
+    for k, v in state_dict.items():
+      if k.startswith('module.'):
+          k = k[7:]
+      if keyword in k:
+          count = len(keyword) + 1
+          k = k[count:]
+          if model_dict[k].size() == v.size():
+              new_state_dict[k] = v
+              matched_layers.append(k)
+          else:
+              discarded_layers.append(k)
+    model_dict.update(new_state_dict)
+
+    model.load_state_dict(model_dict)
+    # print('load_weight', len(discarded_layers))
+    return model
+
+
 def window_partition(x, window_size, h_w, w_w):
     """
     Args:
@@ -247,9 +273,10 @@ class pyramid_trans_expr2(nn.Module):
         self.window_size = window_size
         self.N = [win * win for win in window_size]
         self.face_landback = MobileFaceNet([112, 112], 136)
-        face_landback_checkpoint = torch.load(r'models/pretrain/mobilefacenet_model_best.pth.tar',
-                                              map_location=lambda storage, loc: storage)
-        self.face_landback.load_state_dict(face_landback_checkpoint['state_dict'])
+        # face_landback_checkpoint = torch.load(r'models/pretrain/mobilefacenet_model_best.pth.tar',
+        #                                       map_location=lambda storage, loc: storage)
+        # self.face_landback.load_state_dict(face_landback_checkpoint['state_dict'])
+        self.face_landback = load_supcon_weights(self.face_landback, 'face_landback', "/kaggle/input/model-supcon-150epochs/ckpt_epoch_150.pth")
 
         for param in self.face_landback.parameters():
             param.requires_grad = False
@@ -257,9 +284,11 @@ class pyramid_trans_expr2(nn.Module):
         self.VIT = VisionTransformer(depth=2, embed_dim=embed_dim, head_loss=head_loss)
 
         self.ir_back = Backbone(50, 0.0, 'ir')
-        ir_checkpoint = torch.load(r'models/pretrain/ir50.pth', map_location=lambda storage, loc: storage)
+        # ir_checkpoint = torch.load(r'models/pretrain/ir50.pth', map_location=lambda storage, loc: storage)
 
-        self.ir_back = load_pretrained_weights(self.ir_back, ir_checkpoint)
+        # self.ir_back = load_pretrained_weights(self.ir_back, ir_checkpoint)
+
+        self.ir_back = load_supcon_weights(self.ir_back, 'ir_back', "/kaggle/input/model-supcon-150epochs/ckpt_epoch_150.pth")
 
         self.attn1 = WindowAttentionGlobal(dim=dims[0], num_heads=num_heads[0], window_size=window_size[0])
         self.attn2 = WindowAttentionGlobal(dim=dims[1], num_heads=num_heads[1], window_size=window_size[1])
