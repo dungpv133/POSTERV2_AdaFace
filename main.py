@@ -32,7 +32,7 @@ parser.add_argument('--data', type=str, default=r'/home/Dataset/RAF')
 parser.add_argument('--data_type', default='RAF-DB', choices=['RAF-DB', 'AffectNet-7', 'CAER-S'],
                         type=str, help='dataset option')
 parser.add_argument('--checkpoint_path', type=str, default='/content/drive/MyDrive/POSTERV2_AdaFace/checkpoint' + time_str + 'model.pth')
-parser.add_argument('--best_checkpoint_path', type=str, default='/content/drive/MyDrive/POSTERV2_AdaFace/checkpoint' + time_str + 'model_best.pth')
+parser.add_argument('--best_checkpoint_path', type=str, default='/kaggle/working/POSTERV2_AdaFace/checkpoint' + time_str + 'model_best.pth')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N', help='number of data loading workers')
 parser.add_argument('--epochs', default=200, type=int, metavar='N', help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N', help='manual epoch number (useful on restarts)')
@@ -183,7 +183,9 @@ def main():
 
         if is_best:
             matrix = D
-
+        if is_best and val_acc > 0.6:
+          print("Saving best model")
+          torch.save(model.state_dict(), args.best_checkpoint_path)
         print('Current best matrix: ', matrix)
 
         txt_name = './log/' + time_str + 'log.txt'
