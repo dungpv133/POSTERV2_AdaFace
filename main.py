@@ -186,6 +186,9 @@ def main():
         if is_best and val_acc > 0.6:
           print("Saving best model")
           torch.save(model.state_dict(), args.best_checkpoint_path)
+        if epoch == args.epochs - 1:
+          print("Saving last model")
+          torch.save(model.state_dict(), args.best_checkpoint_path)
         print('Current best matrix: ', matrix)
 
         txt_name = './log/' + time_str + 'log.txt'
