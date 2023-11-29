@@ -624,7 +624,8 @@ class VisionTransformer(nn.Module):
 
         # Classifier head(s)
         # self.head = nn.Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
-        self.head_dist = None
+        # self.head_dist = None
+        self.head_list = nn.Linear(self.embed_dim, self.num_classes) if num_classes > 0 else nn.Identity()
         if distilled:
             self.head_dist = nn.Linear(self.embed_dim, self.num_classes) if num_classes > 0 else nn.Identity()
 
@@ -703,7 +704,7 @@ class VisionTransformer(nn.Module):
         if(self.use_head == False):
             norms = torch.norm(x, 2, 1, True)
             embeddings = torch.div(x, norms)
-            return embeddings
+            return self.head_list(embeddings)
         if (labels is not None):
           norms = torch.norm(x, 2, 1, True)
           embeddings = torch.div(x, norms)
