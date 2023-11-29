@@ -547,6 +547,7 @@ class VisionTransformer(nn.Module):
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.pos_embed = nn.Parameter(torch.zeros(1, in_c + 1, embed_dim))
         self.pos_drop = nn.Dropout(p=drop_ratio)
+        self.use_head = use_head
 
         self.se_block = SE_block(input_dim=embed_dim)
 
@@ -699,7 +700,7 @@ class VisionTransformer(nn.Module):
         x = self.se_block(x)
 
         # x1 = self.head(x)
-        if(use_head == False):
+        if(self.use_head == False):
             return x
         if (labels is not None):
           norms = torch.norm(x, 2, 1, True)
