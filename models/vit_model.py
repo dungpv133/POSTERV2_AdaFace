@@ -516,7 +516,7 @@ class VisionTransformer(nn.Module):
                  embed_dim=512, depth=6, num_heads=8, mlp_ratio=4.0, qkv_bias=True,
                  qk_scale=None, representation_size=None, distilled=False, drop_ratio=0.,
                  attn_drop_ratio=0., drop_path_ratio=0., embed_layer=PatchEmbed, norm_layer=None,
-                 act_layer=None, head_loss="crossentropy"):
+                 act_layer=None, head_loss="crossentropy", use_head = True):
         """
         Args:
             img_size (int, tuple): input image size
@@ -699,6 +699,8 @@ class VisionTransformer(nn.Module):
         x = self.se_block(x)
 
         # x1 = self.head(x)
+        if(use_head == False):
+            return x
         if (labels is not None):
           norms = torch.norm(x, 2, 1, True)
           embeddings = torch.div(x, norms)
