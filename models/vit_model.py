@@ -701,7 +701,9 @@ class VisionTransformer(nn.Module):
 
         # x1 = self.head(x)
         if(self.use_head == False):
-            return x
+            norms = torch.norm(x, 2, 1, True)
+            embeddings = torch.div(x, norms)
+            return embeddings
         if (labels is not None):
           norms = torch.norm(x, 2, 1, True)
           embeddings = torch.div(x, norms)
