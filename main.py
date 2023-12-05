@@ -186,7 +186,7 @@ def main():
         # if is_best and val_acc > 0.6:
         if epoch % 50 == 0 or epoch == args.epochs - 1 or (is_best and val_acc > 0.8):
           print("Saving best model")
-          new_path = '/kaggle/working/POSTERV2_AdaFace/' + 'poster_' args.head + '.pth'
+          new_path = '/kaggle/working/POSTERV2_AdaFace/' + 'poster_' + args.head + '.pth'
           # torch.save(model.state_dict(), args.best_checkpoint_path)
           torch.save(model.state_dict(), new_path)
         # if epoch == args.epochs - 1:
