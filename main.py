@@ -85,11 +85,11 @@ def main():
             print("=> loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume)
             # args.start_epoch = checkpoint['epoch']
-            best_acc = checkpoint['best_acc']
-            recorder = checkpoint['recorder']
-            recorder1 = checkpoint['recorder1']
-            best_acc = best_acc.to()
-            model.load_state_dict(checkpoint['state_dict'])
+            # best_acc = checkpoint['best_acc']
+            # recorder = checkpoint['recorder']
+            # recorder1 = checkpoint['recorder1']
+            # best_acc = best_acc.to()
+            model.load_state_dict(checkpoint['state_dict'], strict = False)
             optimizer.load_state_dict(checkpoint['optimizer'])
             print("=> loaded checkpoint '{}' (epoch {})".format(args.resume))
         else:
