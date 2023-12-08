@@ -91,7 +91,7 @@ def main():
             # best_acc = best_acc.to()
             model.load_state_dict(checkpoint, strict = False)
             # optimizer.load_state_dict(checkpoint['optimizer'])
-            print("=> loaded checkpoint '{}' (epoch {})".format(args.resume))
+            print("=> loaded checkpoint '{}'".format(args.resume))
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
     cudnn.benchmark = True
