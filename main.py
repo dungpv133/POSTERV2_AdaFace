@@ -310,7 +310,7 @@ def validate(val_loader, model, criterion, args):
               
             _, predicts = torch.max(cos_thetas, 1)
             pre_labels += predicts.cpu().tolist()
-            gt_labels += targets.cpu().tolist()
+            gt_labels += target.cpu().tolist()
           
             output = pred
             target = target.squeeze().cpu().numpy()
