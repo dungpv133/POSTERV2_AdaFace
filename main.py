@@ -284,6 +284,8 @@ def validate(val_loader, model, criterion, args):
          [0, 0, 0, 0, 0, 0, 0],
          [0, 0, 0, 0, 0, 0, 0]]
     with torch.no_grad():
+        pre_labels = []
+        gt_labels = []
         for i, (images, target) in enumerate(val_loader):
             images = images.cuda()
             target = target.cuda()
@@ -305,7 +307,11 @@ def validate(val_loader, model, criterion, args):
                 # batch_size = target.size(0)
                 _, pred = cos_thetas.topk(maxk, 1, True, True)
                 pred = pred.t()
-
+              
+            _, predicts = torch.max(cos_thetas, 1)
+            pre_labels += predicts.cpu().tolist()
+            gt_labels += targets.cpu().tolist()
+          
             output = pred
             target = target.squeeze().cpu().numpy()
             output = output.squeeze().cpu().numpy()
@@ -323,7 +329,9 @@ def validate(val_loader, model, criterion, args):
             if i % args.print_freq == 0:
                 progress.display(i)
 
+        f1 = f1_score(pre_labels, gt_labels, average='macro')
         print(' **** Accuracy {top1.avg:.3f} *** '.format(top1=top1))
+        print(f" **** F1 Score {f1}")
         with open('./log/' + time_str + 'log.txt', 'a') as f:
             f.write(' * Accuracy {top1.avg:.3f}'.format(top1=top1) + '\n')
     print(D)
